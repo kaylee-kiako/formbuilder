@@ -29,6 +29,14 @@ if (compileResult.code != 0) {
   Deno.exit(2);
 }
 
+if (!confirm("Would you like to attach form fields to the PDF?")) {
+  console.log(
+    "Form fields will not be added. Copying temporary file to final destination.",
+  );
+  Deno.copyFile("build.pdf", `${template}.pdf`);
+  Deno.exit(0);
+}
+
 /// The types of form elements we can handle.
 type FormType =
   | "short"
