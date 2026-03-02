@@ -84,7 +84,7 @@
   text(size: 11pt, fill: white, weight: "bold", body),
 )
 
-#let unused(span: 1) = grid.cell(fill: gray.lighten(70%), {})
+#let unused(span: 1) = grid.cell(colspan: span, fill: gray.lighten(70%), {})
 
 /* TEXT RESPONSES */
 
