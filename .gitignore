@@ -1,0 +1,6 @@
+.direnv/
+node_modules/
+# Input files
+*.kdl
+# Output files
+*.pdf
