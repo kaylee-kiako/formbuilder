@@ -133,11 +133,12 @@
 
 #let number(label, body, span: 6) = grid.cell(
   colspan: span,
+  inset: (left: 3pt),
   {
     counter("form").step()
     set text(size: 9pt)
     grid(
-      columns: (1em, 6fr, 2em, 1fr),
+      columns: (1em, 1fr, 2em, 1in),
       rows: (auto,),
       inset: 3pt,
       internal.item-number(1),
