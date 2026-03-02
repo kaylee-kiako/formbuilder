@@ -9,7 +9,7 @@ if (template === null) {
   Deno.exit(1);
 }
 
-let compileResult = new Deno.Command("typst", {
+const compileResult = new Deno.Command("typst", {
   args: [
     "compile",
     "--root=./.",
