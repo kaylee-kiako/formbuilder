@@ -1,4 +1,4 @@
-import { Color, PDFDocument, PDFRadioGroup, PDFTextField } from "pdf-lib";
+import { PDFDocument, PDFRadioGroup } from "pdf-lib";
 
 // Step 1: Determine form to build.
 // Step 1: Built Typst intermediate file.
