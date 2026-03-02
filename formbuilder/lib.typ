@@ -44,6 +44,7 @@
       span: find-entry(node, "span", default: 6),
     ),
     fence: node => elements.fence(find-entry(node, none)),
+    unused: node => elements.unused(span: find-entry(node, "span", default: 1)),
     short: node => elements.short(
       find-entry(node, "tag"),
       find-entry(node, none),
