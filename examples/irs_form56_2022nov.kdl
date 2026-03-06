@@ -1,0 +1,73 @@
+title-bar {
+  id "56"
+  revision "November 2022"
+  title (markup)"Notice Concerning Fiduciary Relationship \\ EXAMPLE DOCUMENT - NOT FOR IRS USE"
+  owner (markup)"OMB No. 1545-0013 \\ EXAMPLE DOCUMENT"
+}
+
+info span=6 {
+  - (markup)"#text(fill: red)[Note: Because our style does not perfectly match the reference IRS form (in particular a larger standard font size and less column width flexibility), some form bodies have been abbreviated.]"
+}
+
+part "Identification"
+
+short span=4 {
+  label "person-name"
+  - "Name of person for whom you are acting (as shown on the tax return)"
+}
+short span=1 label="person-id" "ID Number"
+short span=1 {
+  label "person-ssn"
+  - (markup)"*SSN*"
+}
+short span=6 {
+  label "person-address" 
+  - "Address of person for whom you are acting (number, street, and room or suite no.)"
+}
+short span=6 {
+  label "person-city-state-zip"
+  - "City or town, state, and ZIP code (If a foreign address, see instructions.)"
+}
+short span=6 label="fiduciary-name" "Fiduciary's name"
+short span=6 label="fiduciary-address" {
+  - "Address of fiduciary (number, street, and room or suite no.)"
+}
+short span=4 label="fiduciary-city-state-zip" {
+  - "City or town, state, and ZIP code"
+}
+short span=2 label="fiduciary-phone" {
+  - "Telephone number (optional)"
+}
+
+section "Authority"
+
+multi span=6 {
+  - "Authority for fiduciary relationship. Check applicable box:"
+  option "Court appointment of testate estate (valid will exists)" \
+    label="auth-testate"
+  option "Court appointment of intestate estate (no valid will exists)" \
+    label="auth-intestate"
+  option "Court appointment as guardian or conservator" \
+    label="auth-guardian"
+  option "Fiduciary of intestate estate" \
+    label="auth-fiduciary-intestate"
+  option "Valid trust instrument and amendments" \
+    label="auth-valid-trust"
+  option "Bankruptcy or assignment for the benefit of creditors" \
+    label="auth-bankruptcy"
+  option "Other. Describe:" \
+    label="auth-other" specify=#true
+}
+
+section "Nature of Liability and Tax Notices"
+
+multi span=6 cols=3 {
+  - "Type of taxes (check all that apply):"
+  option "Income" label="tax-income"
+  option "Gift" label="tax-gift"
+  option "Estate" label="tax-estate"
+  option "Generation-skipping transfer" label="tax-transfer"
+  option "Employment" label="tax-employment"
+  option "Excise" label="tax-excise"
+  option "Other (describe):" label="tax-other" specify=#true span=3
+}

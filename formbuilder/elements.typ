@@ -1,397 +1,813 @@
-#import "internal.typ" as internal: mk-metadata
+#import "internal.typ" as internal
 
-/* HEADINGS */
-
-#let meta(typ, id, revision, title, owner) = grid.cell(
-  stroke: (bottom: 0.5pt + black),
-  colspan: 6,
-  grid(
-    columns: (1fr,) * 6,
-    grid.cell(align: bottom, inset: (right: 3pt, bottom: 3pt), [
-      #set text(size: 6.75pt)
-      #typ #text(size: 24pt, weight: "extrabold", id) \
-      (Rev. #revision) \
-    ]),
-    grid.cell(
-      colspan: 4,
-      align: center + horizon,
-      inset: (x: 3pt, bottom: 3pt),
-      stroke: (x: 1pt + black),
-      text(
-        weight: "bold",
-        size: 14pt,
-        title,
-      ),
+/// A simple title bar element.
+///
+/// The title bar consists of:
+///   * a title,
+///   * a form number,
+///   * a form type (e.g., Report, Form, Ballot)
+///   * a revision, indicating when the *layout* was last changed.
+///   * a special field tentatively referred to as the owner.
+///     this is typically best used for things like:
+///       * "Office of the President"
+///       * "For Internal Use Only"
+///       * "Edition 2026-03-03" (for CSV-sourced items)
+///     some inspirations leave this area blank. use it as you need it.
+///
+/// The title bar always has `span == style.columns`.
+#let title-bar = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    title: (
+      type: content,
+      path: "title",
     ),
-    grid.cell(align: center + horizon, text(
-      size: 6.75pt,
-      owner,
-    )),
+    revision: (
+      type: content,
+      default: none,
+      path: "revision",
+    ),
+    type: (
+      type: content,
+      default: "Form",
+      path: "type",
+    ),
+    id: (
+      type: content,
+      path: "id",
+    ),
+    owner: (
+      type: content,
+      default: none,
+      path: "owner",
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    stroke: (bottom: style.strokes.thick),
+    colspan: style.columns,
+    {
+      // Check that our style is valid.
+      if style.elements.title-bar.columns.len() != 3 {
+        panic("`elements.title-bar.style` must have exactly 3 lengths.")
+      }
+      // Maximum of one title.
+      let form-has-title = state("formHasTitle", false)
+      context if form-has-title.get() {
+        panic("Cannot have more than one `title-bar` per document.")
+      }
+      state("formHasTitle").update(_ => true)
+      // Render the title.
+      grid(
+        columns: style.elements.title-bar.columns,
+        // Top-left corner: Form number and revision.
+        grid.cell(
+          align: bottom,
+          inset: (
+            right: style.elements.title-bar.inset,
+            bottom: style.elements.title-bar.inset,
+          ),
+          {
+            set text(..style.elements.title-bar.text.corner)
+            [#data.type #text(..style.elements.title-bar.text.form, data.id)]
+            if "revision" in data [\ (Rev. #data.revision)]
+          },
+        ),
+        // Top-middle: Title!
+        grid.cell(
+          align: center + horizon,
+          inset: (
+            x: style.elements.title-bar.inset,
+            bottom: style.elements.title-bar.inset,
+          ),
+          stroke: (x: style.strokes.thick),
+          {
+            show title: set text(..style.elements.title-bar.text.title)
+            show title: it => it.body
+            title(data.title)
+          },
+        ),
+        // Top-right: What we're tentatively calling "owner".
+        grid.cell(
+          align: center + horizon,
+          text(..style.elements.title-bar.text.corner, data.owner),
+        )
+      )
+    },
   ),
 )
 
-#let part(body, note: none) = grid.cell(
-  colspan: 6,
-  stroke: (top: 1pt + black, bottom: 0.5pt + black),
-  context {
-    set text(weight: "bold", size: 11pt)
-    counter(heading).step()
-    box(
-      fill: black,
-      inset: (y: 3pt),
-      width: 1fr,
-      text(
-        fill: white,
-        align(
-          center,
-        )[Part #context numbering("I", counter(heading).get().first())],
-      ),
-    )
-    box(
-      width: 11fr,
-      inset: (x: 4.54545%, y: 3pt),
-      body + [ ] + if note != none { "(" + note + ")" },
-    )
-  },
+/// A "Part"-style divider.
+///
+/// Note that, for accessibility, we attempt to use semantic headings.
+/// As a result, whichever gets used first between `part` and `section` will
+/// be given the top-level heading. Since part is considered higher order than
+/// section, we will force a panic if the first part appears after a section(s),
+/// since this violates accessibility standards.
+#let part = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    body: (
+      type: content,
+      path: none,
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: style.columns,
+    stroke: (
+      top: style.strokes.thick,
+      bottom: style.strokes.thin,
+    ),
+    inset: style.elements.part.inset,
+    {
+      // Confirm that the firt part does not appear after any sections.
+      let form-uses-parts = state("formUsesParts", none)
+      context if form-uses-parts.get() == false {
+        panic("First 'part' element must appear before any 'section' elements.")
+      }
+      form-uses-parts.update(val => if val == none { true } else { false })
+      counter(heading).step()
+      set text(..style.elements.part.text)
+      {
+        // The "Part I" box.
+        box(
+          fill: black,
+          ..style.elements.part.number-box,
+          align(center, text(
+            fill: white,
+            {
+              style.elements.part.supplement
+              " "
+              context numbering(
+                style.elements.part.numbering,
+                counter(heading).get().at(0),
+              )
+            },
+          )),
+        )
+        // The actual body.
+        box(
+          ..style.elements.part.body-box,
+          data.body,
+        )
+      }
+    },
+  ),
 )
 
-#let section(body) = grid.cell(
-  colspan: 6,
-  inset: 3pt,
-  stroke: (y: 0.5pt + black),
-  align: center,
-  {
-    set text(size: 10pt)
-    counter(heading).step(level: 2)
-    [Section #context numbering("A", counter(heading).get().at(1))#sym.dash.em#body]
-  },
+/// A "Section"-style divider.
+///
+/// Note that, for accessibility, we attempt to use semantic headings.
+/// As a result, whichever gets used first between `part` and `section` will
+/// be given the top-level heading. Since part is considered higher order than
+/// section, we will force a panic if the first part appears after a section(s),
+/// since this violates accessibility standards.
+#let section = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    body: (
+      type: content,
+      path: none,
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: style.columns,
+    inset: style.elements.section.inset,
+    stroke: (y: style.strokes.thin),
+    align: center,
+    {
+      let form-uses-parts = state("formUsesParts", none)
+      form-uses-parts.update(val => if val == none { false } else { true })
+      set text(..style.elements.section.text)
+      show heading: set text(..style.elements.section.text)
+      show heading: it => it.body
+      context {
+        let level = if form-uses-parts.get() { 2 } else { 1 }
+        counter(heading).step(level: level)
+      }
+      context {
+        let level = if form-uses-parts.get() { 2 } else { 1 }
+        heading({
+          (
+            style.elements.section.supplement
+              + " "
+              + numbering(
+                style.elements.section.numbering,
+                counter(heading).get().at(level - 1),
+              )
+              + sym.dash.em
+              + heading(data.body)
+          )
+        })
+      }
+    },
+  ),
 )
 
-/* MISCELLANEOUS DIVIDERS & INFORMATIONAL BITS */
-
-#let info(body, span: 6) = grid.cell(
-  colspan: span,
-  inset: (x: 3pt, y: 6pt),
-  text(size: 9pt, body),
+/// An informational or instructional text box, with no form fields.
+#let info = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    body: (
+      type: content,
+      path: none,
+    ),
+    span: (
+      type: int,
+      // default: internal.fill-row,
+      path: "span",
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: data.span,
+    inset: style.elements.info.inset,
+    {
+      internal.update-row-fill(style, data.span)
+      set text(..style.elements.info.text)
+      data.body
+    },
+  ),
 )
 
-#let fence(body) = grid.cell(
-  colspan: 6,
-  inset: 3pt,
-  stroke: (y: 0.5pt + black),
-  fill: black,
-  align: center,
-  text(size: 11pt, fill: white, weight: "bold", body),
+/// A barrier 'fence'.
+///
+/// Fences are used to communicate important instructions, typically something
+/// along the lines of "For Internal Use Only".
+#let fence = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    /// The text content of this element.
+    body: (
+      type: content,
+      path: none,
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: style.columns,
+    inset: style.elements.fence.inset,
+    stroke: (y: style.strokes.thin),
+    fill: black,
+    align: center,
+    text(fill: white, ..style.elements.fence.text, data.body),
+  ),
 )
 
-#let unused(span: 1) = grid.cell(colspan: span, fill: gray.lighten(70%), {})
-
-/* TEXT RESPONSES */
-
-#let short(label, body, span: 6) = grid.cell(
-  colspan: span,
-  inset: 3pt,
-  {
-    set text(size: 9pt)
-    counter("form").step()
-    grid(
-      columns: (1em, 1fr),
-      rows: (auto, 1.5em),
-      internal.item-number(2),
-      grid.cell(inset: (left: 1em), body),
-      grid.cell(mk-metadata("short", label, dy: 2pt)),
-    )
-  },
+/// A greyed-out, unused cell.
+///
+/// Typst's layout engine requires each cell to be able to fit greedily into the
+/// next available cell position. The 'unused' cell allows us to fill space
+/// without having to enlarge any form boxes.
+///
+/// Because of how we're drawing our borders, there's some limitations on where
+/// and how often you can use these. Where at all possible, try to structure your
+/// form to not require these at all.
+#let unused = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    span: (
+      type: int,
+      // default: internal.fill-row,
+      path: "span",
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: data.span,
+    fill: style.elements.unused.fill,
+    internal.update-row-fill(style, data.span),
+  ),
 )
 
-#let long(label, body, rows: 3) = grid.cell(
-  colspan: 6,
-  inset: 3pt,
-  {
-    set text(size: 9pt)
-    counter("form").step()
-    grid(
-      stroke: (x, y) => if x == 1 and y > 0 {
-        (bottom: (dash: "dotted", thickness: 0.5pt, paint: black))
-      },
-      columns: (1em, 1fr),
-      rows: (auto,) + (2em,) * rows,
-      internal.item-number(1 + rows),
-      grid.cell(inset: (left: 1em), body),
-      ..(
-        grid.cell(inset: (left: 1em, bottom: 3pt), {
-          counter("form").step(level: 2)
-          mk-metadata("long", label, dy: 3pt)
-        }),
+/// A short text response, with a form-fillable short-response field.
+///
+/// The 'body' is placed just above the text, left aligned. To help with
+/// alignment, this should either:
+///
+///   * span the entire width of the column, or
+///   * be only one line long.
+///
+/// I recommend using 'info' elements and footnote where these limitations
+/// cannot otherwise be met.
+#let short = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    label: (
+      type: str,
+      path: "label",
+    ),
+    body: (
+      type: content,
+      path: none,
+    ),
+    span: (
+      type: int,
+      // default: internal.fill-row,
+      path: "span",
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: data.span,
+    inset: style.elements.short.inset,
+    {
+      internal.update-row-fill(style, data.span)
+      set text(..style.text)
+      grid(
+        columns: (style.numbers.width, 1fr),
+        rows: (auto, style.elements.short.line-height),
+        internal.item-number(2, style),
+        grid.cell(inset: style.elements.short.body-inset, data.body),
+        grid.cell(internal.metadata("short", data.label)),
       )
-        * rows,
-    )
-  },
+    },
+  ),
 )
 
-/* NUMERICAL RESPONSES */
+/// A long text response, with a form-fillable multiline response field.
+///
+/// The body is placed just above the text, left aligned.
+/// To help with alignment, this should either:
+///
+///   * span the entire width of the column, or
+///   * have a very carefully-considered description and number of lines.
+#let long = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    label: (
+      type: str,
+      path: "label",
+    ),
+    body: (
+      type: content,
+      path: none,
+    ),
+    rows: (
+      type: int,
+      path: "rows",
+    ),
+    span: (
+      type: int,
+      // default: internal.fill-row,
+      path: "span",
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: data.span,
+    inset: style.elements.long.inset,
+    {
+      internal.update-row-fill(style, data.span)
+      set text(..style.text)
+      grid(
+        columns: (style.numbers.width, 1fr),
+        rows: (auto, style.elements.long.line-height * data.rows),
+        internal.item-number(2, style),
+        grid.cell(inset: style.elements.long.body-inset, data.body),
+        grid.cell(
+          inset: style.elements.long.line-inset,
+          internal.metadata("long", data.label),
+        ),
+      )
+    },
+  ),
+)
 
-#let number(label, body, span: 6) = grid.cell(
-  colspan: span,
-  inset: (left: 3pt),
-  {
-    counter("form").step()
-    set text(size: 9pt)
-    grid(
-      columns: (1em, 1fr, 2em, 1in),
-      rows: (auto,),
-      inset: 3pt,
-      internal.item-number(1),
-      grid.cell(
-        stroke: (right: 0.5pt + black),
-        inset: (left: 1em, rest: 3pt),
-        body,
-      ),
-      internal.item-number(1, align: center + bottom),
-      grid.cell(align: bottom, stroke: (left: 0.5pt + black), box(
-        width: 1fr,
-        place(
-          bottom,
-          dy: 0.3em,
-          box(
+/// A short text response optimized for writing numbers that might need to be
+/// manipulated later.
+#let number = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    label: (
+      type: str,
+      path: "label",
+    ),
+    body: (
+      type: content,
+      path: none,
+    ),
+    span: (
+      type: int,
+      // default: internal.fill-row,
+      path: "span",
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: data.span,
+    inset: style.elements.number.inset,
+    {
+      internal.update-row-fill(style, data.span)
+      set text(..style.text)
+      grid(
+        columns: (style.numbers.width, 1fr) + style.elements.number.columns,
+        inset: style.elements.number.inset,
+        internal.item-number(1, style),
+        grid.cell(
+          stroke: (right: style.strokes.thin),
+          inset: style.elements.number.body-inset,
+          data.body,
+        ),
+        internal.item-number(1, style, step: false, align: bottom + center),
+        grid.cell(align: bottom, stroke: (left: style.strokes.thin), box(
+          width: 1fr,
+          place(dy: style.elements.number.line-height - 1em, box(
             width: 1fr,
-            height: 1.3em,
-            mk-metadata("number", label),
-          ),
+            height: style.elements.number.line-height,
+            internal.metadata("number", label),
+          )),
+        ))
+      )
+    },
+  ),
+)
+
+/// A radio selection element.
+///
+/// Radio selections only allow a single item to be chosen. If you want any number
+/// of items able to be chosen, see the 'multi' element.
+///
+/// This is intended for a variable number of flexible radio responses. If you
+/// are asking a yes/no question, see the 'yes-no' element.
+#let radio = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    radio-group: (
+      type: str,
+      path: "group",
+    ),
+    body: (
+      type: content,
+      path: none,
+    ),
+    span: (
+      type: int,
+      // default: internal.fill-row,
+      path: "span",
+    ),
+    cols: (
+      type: int,
+      default: 1,
+      path: "cols",
+    ),
+    options: (
+      type: array,
+      subtype: dictionary,
+      path: "option",
+      subschema: (
+        label: (
+          type: str,
+          path: "label",
         ),
-      )),
-    )
-  },
-)
-
-/* RADIO RESPONSES */
-
-#let radio(label, body, span: 6, cols: 1, items) = grid.cell(
-  colspan: span,
-  inset: 3pt,
-  {
-    counter("form").step()
-    set text(size: 9pt)
-    grid(
-      columns: (1em,) + (14pt, 1fr) * cols,
-      rows: (auto,),
-      internal.item-number(1 + calc.ceil(items.len() / cols)),
-      grid.cell(inset: (left: 1em, bottom: 3pt), colspan: cols * 2, body),
-      ..for item in items {
-        (
-          grid.cell(align: top, inset: 3pt, box(
-            width: 8pt,
-            height: 8pt,
-            circle(
-              radius: 4pt,
-              stroke: 1pt + black,
-              inset: -1pt,
-              mk-metadata(
-                "radio",
-                label,
-                extras: (radioLabel: item.label),
-              ),
-            ),
-          )),
-          grid.cell(
-            inset: 3pt,
-            item.body
-              + if item.at("specify", default: false) {
-                (
-                  h(1em)
-                    + box(width: 1fr, place(dy: -1.3em, box(
-                      width: 1fr,
-                      height: 1.5em,
-                      stroke: (
-                        bottom: (
-                          dash: "dotted",
-                          thickness: 0.5pt,
-                          paint: black,
-                        ),
-                      ),
-                      mk-metadata("short", label, extras: (
-                        radioLabel: item.label,
-                        isSpecify: true,
-                      )),
-                    )))
-                )
-              },
-            colspan: item.at("span", default: 1) * 2 - 1,
-          ),
-        )
-      }
-    )
-  },
-)
-
-#let yesno(label, body, span: 6) = grid.cell(
-  colspan: span,
-  inset: (x: 3pt),
-  {
-    counter("form").step()
-    set text(size: 9pt)
-    grid(
-      columns: (1em, 1fr, auto, 4em, auto, 4em),
-      rows: (auto,),
-      inset: 3pt,
-      internal.item-number(1),
-      grid.cell(
-        inset: (left: 1em, rest: 3pt),
-        body,
-      ),
-      grid.cell(align: bottom + right, inset: 3pt, box(
-        width: 8pt,
-        height: 8pt,
-        {
-          circle(
-            radius: 4pt,
-            stroke: 1pt + black,
-            inset: -1pt,
-            mk-metadata(
-              "radio",
-              label,
-              extras: (radioLabel: "yes"),
-            ),
-          )
-        },
-      )),
-      grid.cell(align: bottom)[Yes],
-      grid.cell(align: bottom + right, inset: 3pt, box(
-        width: 8pt,
-        height: 8pt,
-        {
-          circle(
-            radius: 4pt,
-            stroke: 1pt + black,
-            inset: -1pt,
-            mk-metadata(
-              "radio",
-              label,
-              extras: (radioLabel: "no"),
-            ),
-          )
-        },
-      )),
-      grid.cell(align: bottom)[No],
-    )
-  },
-)
-
-/* MULTIPLE-SELECT RESPONSES */
-
-#let multi(body, span: 6, cols: 1, items) = grid.cell(
-  colspan: span,
-  inset: 3pt,
-  {
-    counter("form").step()
-    set text(size: 9pt)
-    grid(
-      columns: (1em,) + (1em, auto, 1fr) * cols,
-      rows: (auto,),
-      inset: 3pt,
-      internal.item-number(1 + calc.ceil(items.len() / cols)),
-      grid.cell(inset: (left: 1em, bottom: 3pt), colspan: cols * 3, body),
-      ..for item in items {
-        (
-          internal.item-number(
-            1,
-            level: 2,
-            step: true,
-          ),
-          grid.cell(align: top + right, box(
-            stroke: 1pt + black,
-            width: 8pt,
-            height: 8pt,
-            mk-metadata(
-              "checkbox",
-              item.label,
-            ),
-          )),
-          grid.cell(
-            item.body
-              + if item.at("specify", default: false) {
-                (
-                  h(1em)
-                    + box(width: 1fr, place(dy: -1.3em, box(
-                      width: 1fr,
-                      height: 1.5em,
-                      stroke: (
-                        bottom: (
-                          dash: "dotted",
-                          thickness: 0.5pt,
-                          paint: black,
-                        ),
-                      ),
-                      mk-metadata("short", item.label, extras: (
-                        isSpecify: true,
-                      )),
-                    )))
-                )
-              },
-            colspan: item.at("span", default: 1) * 3 - 2,
-          ),
-        )
-      }
-    )
-  },
-)
-
-/* SPECIALIZED */
-
-#let signature(
-  signature-label,
-  date-label,
-  sign-me-body: "Please Sign Here",
-  signature-body: "Signature",
-  date-body: "Date",
-  body,
-) = grid.cell(
-  colspan: 6,
-  stroke: (y: 1pt + black),
-  {
-    grid(
-      columns: (1fr, 0.5fr, 6fr, 1fr, 3fr, 0.5fr),
-      rows: (auto, 2.5em, auto),
-      grid.cell(
-        rowspan: 3,
-        inset: (y: 3pt),
-        align: horizon,
-        stroke: (right: 0.5pt + black),
-        text(
-          size: 11pt,
-          weight: "bold",
-          sign-me-body,
+        body: (
+          type: content,
+          path: none,
+        ),
+        span: (
+          type: int,
+          default: 1,
+          path: "span",
+        ),
+        specify: (
+          type: bool,
+          default: false,
+          path: "specify",
         ),
       ),
-      grid.cell(
-        inset: 3pt,
-        colspan: 5,
-        text(size: 9pt, body),
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: data.span,
+    inset: style.elements.radio.inset,
+    {
+      internal.update-row-fill(style, data.span)
+      set text(..style.text)
+      grid(
+        columns: (style.numbers.width,) + (auto, 1fr) * data.cols,
+        internal.item-number(1 + calc.ceil(data.options.len() / data.cols)),
+        grid.cell(
+          inset: style.elements.radio.body-inset,
+          colspan: data.cols * 2,
+          data.body,
+        ),
+        ..data
+          .options
+          .map(option => (
+            internal.radio-option(option.label, style, data.radio-group),
+            grid.cell(
+              inset: style.elements.radio.option-inset,
+              colspan: option.span * 2 - 1,
+              option.body + internal.specify-short(option.label, style),
+            ),
+          ))
+          .flatten()
+      )
+    },
+  ),
+)
+
+/// A radio selection optimized for simple yes-no questions.
+///
+/// In some cases it may be preferred to use a 'multi' element, especially if
+/// you have multiple related yes/no questions.
+#let yesNo = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    radio-group: (
+      type: str,
+      path: "group",
+    ),
+    body: (
+      type: content,
+      path: none,
+    ),
+    span: (
+      type: int,
+      // default: internal.fill-row,
+      path: "span",
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: data.span,
+    {
+      internal.update-row-fill(style, data.span)
+      set text(..style.text)
+      grid(
+        inset: style.elements.yes-no.inset,
+        columns: (style.numbers.width, 1fr)
+          + 2 * (auto, style.elements.yes-no.yes-no-width),
+        internal.item-number(1, style),
+        grid.cell(inset: style.elements.yes-no.body-inset),
+
+        internal.radio-option(
+          "yes",
+          style,
+          data.radio-group,
+          align: bottom + right,
+        ),
+        grid.cell(align: bottom, "Yes"),
+        internal.radio-option(
+          "no",
+          style,
+          data.radio-group,
+          align: bottom + right,
+        ),
+        grid.cell(align: bottom, "No"),
+      )
+    },
+  ),
+)
+
+/// A multiple-selection element.
+///
+/// Multi-selection elements allow any number of items to be chosen. If you want
+/// to only allow a single item to be chosen, see the 'radio' element.
+///
+/// If you only have a single option in a multi element, you may want to use a
+/// yes/no element instead.
+#let multi = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    body: (
+      type: content,
+      path: none,
+    ),
+    span: (
+      type: int,
+      // default: internal.fill-row,
+      path: "span",
+    ),
+    cols: (
+      type: int,
+      default: 1,
+      path: "cols",
+    ),
+    options: (
+      type: array,
+      subtype: dictionary,
+      path: "option",
+      subschema: (
+        label: (
+          type: str,
+          path: "label",
+        ),
+        body: (
+          type: content,
+          path: none,
+        ),
+        span: (
+          type: int,
+          default: 1,
+          path: "span",
+        ),
+        specify: (
+          type: bool,
+          default: false,
+          path: "specify",
+        ),
       ),
-      grid.cell(x: 2, y: 1, inset: 3pt, {
-        counter("form").step()
-        mk-metadata(
-          "short",
-          signature-label,
-          dy: 3pt,
-        )
-      }),
-      grid.cell(x: 4, y: 1, inset: 3pt, {
-        counter("form").step()
-        mk-metadata(
-          "short",
-          date-label,
-          dy: 3pt,
-        )
-      }),
-      grid.cell(x: 2, y: 2, inset: 3pt, stroke: (top: 0.5pt + black), text(
-        size: 9pt,
-        signature-body,
-      )),
-      grid.cell(x: 4, y: 2, inset: 3pt, stroke: (top: 0.5pt + black), text(
-        size: 9pt,
-        date-body,
-      )),
-    )
-  },
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  render: (data, style) => grid.cell(
+    colspan: data.span,
+    inset: style.elements.multi.inset,
+    {
+      internal.update-row-fill(style, data.span)
+      set text(..style.text)
+      counter("formItemIndex").step()
+      grid(
+        inset: style.elements.multi.inset,
+        columns: (style.numbers.width,)
+          + (style.numbers.width, auto, 1fr) * data.cols,
+        internal.item-number(
+          1 + calc.ceil(data.options.len() / data.cols),
+          style,
+          step: false,
+        ),
+        grid.cell(
+          inset: style.elements.multi.body-inset,
+          colspan: data.cols * 3,
+          data.body,
+        ),
+        ..data
+          .options
+          .map(option => (
+            internal.item-number(1, style, level: 2),
+            internal.checkbox(option.label, style),
+            grid.cell(
+              inset: style.elements.multi.option-inset,
+              colspan: option.span * 3 - 2,
+              option.body
+                + if option.specify {
+                  internal.specify-short(option.label, style)
+                },
+            ),
+          ))
+          .flatten(),
+      )
+    },
+  ),
+)
+
+/// A signature box with a date field.
+#let signature = (
+  /// The data required by the render function.
+  /// See `internal.extract-data-from-kdl`.
+  schema: (
+    hint: (
+      type: content,
+      path: "hint",
+    ),
+    body: (
+      type: content,
+      path: none,
+    ),
+    signature: (
+      type: dictionary,
+      path: "signature",
+      subschema: (
+        label: (
+          type: str,
+          path: "label",
+        ),
+        body: (
+          type: content,
+          path: none,
+        ),
+      ),
+    ),
+    date: (
+      type: dictionary,
+      path: "date",
+      subschema: (
+        label: (
+          type: str,
+          path: "label",
+        ),
+        body: (
+          type: content,
+          path: none,
+        ),
+      ),
+    ),
+  ),
+  /// Render this element.
+  ///
+  /// - data (dictionary): The data for this element.
+  /// - style (dictionary): The global style dictionary.
+  /// -> grid.cell
+  // TODO: Implement `render`.
+  // signature[; body], date[label; body]
+  render: (data, style) => grid.cell(
+    colspan: style.columns,
+    stroke: (y: style.strokes.thick),
+    {
+      set text(..style.text)
+      grid(
+        columns: (
+          style.elements.signature.hint-width,
+          style.elements.signature.margin-width,
+          style.elements.signature.signature-width,
+          style.elements.signature.gap-width,
+          style.elements.signature.date-width,
+          style.elements.signature.margin-width,
+        ),
+        rows: (auto, style.elements.signature.line-height, auto),
+        grid.cell(
+          rowspan: 3,
+          inset: style.elements.signature.hint-inset,
+          align: horizon,
+          stroke: (right: style.strokes.thin),
+          text(..style.elements.signature.hint-text, data.hint),
+        ),
+        grid.cell(
+          colspan: 5,
+          inset: style.elements.signature.body-inset,
+          data.body,
+        ),
+        grid.cell(x: 2, y: 1, internal.metadata("short", data.signature.label)),
+        grid.cell(
+          x: 2,
+          y: 2,
+          inset: style.elements.signature.signature-inset,
+          stroke: (top: style.strokes.thin),
+          data.signature.body,
+        ),
+        grid.cell(x: 4, y: 1, internal.metadata("short", data.date.label)),
+        grid.cell(
+          x: 4,
+          y: 2,
+          inset: style.elements.signature.date-inset,
+          stroke: (top: style.strokes.thin),
+          data.date.body,
+        ),
+      )
+    },
+  ),
 )

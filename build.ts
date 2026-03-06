@@ -126,9 +126,8 @@ for (const fieldData of formData) {
       break;
     }
     case "long": {
-      const field = form.createTextField(
-        `${fieldData.formLabel} ${fieldData.formIndex[1]}`,
-      );
+      const field = form.createTextField(fieldData.formLabel);
+      field.enableMultiline();
       field.addToPage(
         pdfDoc.getPage(fieldData.page - 1),
         intoOptions(fieldData),
