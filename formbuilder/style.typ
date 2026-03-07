@@ -99,8 +99,8 @@
       option-inset: 3pt,
     ),
     yes-no: (
-      inset: (x: 3pt),
-      body-inset: (left: 1em, rest: 3pt),
+      inset: 3pt,
+      body-inset: (left: 1em),
       yes-no-width: 4em,
     ),
     multi: (

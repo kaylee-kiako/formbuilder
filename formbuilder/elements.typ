@@ -597,8 +597,7 @@
         columns: (style.numbers.width, 1fr)
           + 2 * (auto, style.elements.yes-no.yes-no-width),
         internal.item-number(1, style),
-        grid.cell(inset: style.elements.yes-no.body-inset),
-
+        grid.cell(inset: style.elements.yes-no.body-inset, data.body),
         internal.radio-option(
           "yes",
           style,
