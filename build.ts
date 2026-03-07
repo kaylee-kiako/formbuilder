@@ -63,9 +63,7 @@ interface Metadata {
   /// The height of this element.
   height: number;
   /// If this is a radio, a unique label for this specific option.
-  radioLabel?: string;
-  /// Whether this is a subordinate short-response to a checkbox or radio.
-  isSpecify?: boolean;
+  radioGroup?: string;
 }
 
 interface Options {
@@ -107,10 +105,7 @@ const form = pdfDoc.getForm();
 for (const fieldData of formData) {
   switch (fieldData.formType) {
     case "short": {
-      const label = fieldData.isSpecify
-        ? `${fieldData.formLabel} ${fieldData.radioLabel} specify`
-        : fieldData.formLabel;
-      const field = form.createTextField(label);
+      const field = form.createTextField(fieldData.formLabel);
       field.addToPage(
         pdfDoc.getPage(fieldData.page - 1),
         intoOptions(fieldData),
@@ -135,14 +130,14 @@ for (const fieldData of formData) {
       break;
     }
     case "radio": {
-      if (!(fieldData.formLabel in radios)) {
-        radios[fieldData.formLabel] = form.createRadioGroup(
-          fieldData.formLabel,
+      if (!(fieldData.radioGroup as string in radios)) {
+        radios[fieldData.radioGroup as string] = form.createRadioGroup(
+          fieldData.radioGroup as string,
         );
       }
-      const group = radios[fieldData.formLabel];
+      const group = radios[fieldData.radioGroup as string];
       group.addOptionToPage(
-        fieldData.radioLabel as string,
+        fieldData.formLabel as string,
         pdfDoc.getPage(fieldData.page - 1),
         intoOptions(fieldData),
       );
