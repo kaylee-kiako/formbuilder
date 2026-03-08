@@ -127,6 +127,7 @@ for (const fieldData of formData) {
         pdfDoc.getPage(fieldData.page - 1),
         intoOptions(fieldData),
       );
+      field.setFontSize(9);
       break;
     }
     case "radio": {
