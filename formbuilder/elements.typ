@@ -443,13 +443,14 @@
   /// -> grid.cell
   render: (data, style) => grid.cell(
     colspan: data.span,
-    inset: style.elements.number.inset,
     {
       internal.update-row-fill(style, data.span)
       set text(..style.text)
       grid(
         columns: (style.numbers.width, 1fr) + style.elements.number.columns,
-        inset: style.elements.number.inset,
+        inset: (x, y) => if x == 0 or x == 2 {
+          style.elements.number.inset
+        } else { 0pt },
         internal.item-number(1, style),
         grid.cell(
           stroke: (right: style.strokes.thin),
@@ -459,11 +460,8 @@
         internal.item-number(1, style, step: false, align: bottom + center),
         grid.cell(align: bottom, stroke: (left: style.strokes.thin), box(
           width: 1fr,
-          place(dy: style.elements.number.line-height - 1em, box(
-            width: 1fr,
-            height: style.elements.number.line-height,
-            internal.metadata("number", label),
-          )),
+          height: style.elements.number.line-height,
+          internal.metadata("number", data.label),
         ))
       )
     },
