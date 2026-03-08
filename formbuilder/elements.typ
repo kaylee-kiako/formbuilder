@@ -562,7 +562,7 @@
 ///
 /// In some cases it may be preferred to use a 'multi' element, especially if
 /// you have multiple related yes/no questions.
-#let yesNo = (
+#let yes-no = (
   /// The data required by the render function.
   /// See `internal.extract-data-from-kdl`.
   schema: (
