@@ -1,4 +1,4 @@
-import { PDFDocument, PDFRadioGroup } from "pdf-lib";
+import { PDFDocument, PDFRadioGroup, TextAlignment } from "pdf-lib";
 
 // Step 1: Determine form to build.
 // Step 1: Built Typst intermediate file.
@@ -118,6 +118,7 @@ for (const fieldData of formData) {
         pdfDoc.getPage(fieldData.page - 1),
         intoOptions(fieldData),
       );
+      field.setAlignment(TextAlignment.Right);
       break;
     }
     case "long": {
