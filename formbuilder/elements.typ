@@ -407,10 +407,7 @@
         rows: (auto, style.elements.long.line-height * data.rows),
         internal.item-number(2, style),
         grid.cell(inset: style.elements.long.body-inset, data.body),
-        grid.cell(
-          inset: style.elements.long.line-inset,
-          internal.metadata("long", data.label),
-        ),
+        grid.cell(internal.metadata("long", data.label)),
       )
     },
   ),
