@@ -756,8 +756,6 @@
   /// - data (dictionary): The data for this element.
   /// - style (dictionary): The global style dictionary.
   /// -> grid.cell
-  // TODO: Implement `render`.
-  // signature[; body], date[label; body]
   render: (data, style) => grid.cell(
     colspan: style.columns,
     stroke: (y: style.strokes.thick),
