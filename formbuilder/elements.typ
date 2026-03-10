@@ -136,7 +136,7 @@
       context if form-uses-parts.get() == false {
         panic("First 'part' element must appear before any 'section' elements.")
       }
-      form-uses-parts.update(val => if val == none { true } else { false })
+      form-uses-parts.update(val => if val == none { true } else { val })
       counter(heading).step()
       set text(..style.elements.part.text)
       {
@@ -194,7 +194,7 @@
     align: center,
     {
       let form-uses-parts = state("formUsesParts", none)
-      form-uses-parts.update(val => if val == none { false } else { true })
+      form-uses-parts.update(val => if val == none { false } else { val })
       set text(..style.elements.section.text)
       show heading: set text(..style.elements.section.text)
       show heading: it => it.body
