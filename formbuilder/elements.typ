@@ -531,22 +531,33 @@
     {
       internal.update-row-fill(style, data.span)
       set text(..style.text)
+      counter("formItemIndex").step()
       grid(
-        columns: (style.numbers.width,) + (auto, 1fr) * data.cols,
-        internal.item-number(1 + calc.ceil(data.options.len() / data.cols)),
+        inset: style.elements.radio.inset,
+        columns: (style.numbers.width,)
+          + (style.numbers.width, auto, 1fr) * data.cols,
+        internal.item-number(
+          1 + calc.ceil(data.options.len() / data.cols),
+          style,
+          step: false,
+        ),
         grid.cell(
           inset: style.elements.radio.body-inset,
-          colspan: data.cols * 2,
+          colspan: data.cols * 3,
           data.body,
         ),
         ..data
           .options
           .map(option => (
+            internal.item-number(1, style, level: 2),
             internal.radio-option(option.label, style, data.radio-group),
             grid.cell(
               inset: style.elements.radio.option-inset,
-              colspan: option.span * 2 - 1,
-              option.body + internal.specify-short(option.label, style),
+              colspan: option.span * 3 - 2,
+              option.body
+                + if option.specify {
+                  internal.specify-short(option.label, style)
+                },
             ),
           ))
           .flatten()
